@@ -10,6 +10,17 @@ foreach ($depsFile in Get-ChildItem -LiteralPath $PublishDirectory -Filter '*.de
     foreach ($key in $deps.libraries.Keys) {
         if ($deps.libraries[$key].type -eq 'package') { [void]$packageKeys.Add($key) }
     }
+    # Self-contained runtime packs are not ordinary .deps.json libraries.
+    $configPath = $depsFile.FullName.Replace('.deps.json', '.runtimeconfig.json')
+    if (Test-Path -LiteralPath $configPath) {
+        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json -AsHashtable
+        $rid = $deps.runtimeTarget.name.Split('/')[-1]
+        foreach ($framework in $config.runtimeOptions.includedFrameworks) {
+            if ($framework.name -eq 'Microsoft.NETCore.App') {
+                [void]$packageKeys.Add("Microsoft.NETCore.App.Runtime.$rid/$($framework.version)")
+            }
+        }
+    }
 }
 $inventory = foreach ($key in ($packageKeys | Sort-Object)) {
     $directory = Join-Path $script:RepositoryRoot ('.artifacts/packages/' + $key.ToLowerInvariant())

@@ -12,6 +12,8 @@ Headless UI renderings were inspected from `.artifacts/verification/jam-manager.
 
 The Windows self-contained archive was built with `Pack.ps1 -Runtime win-x64 -Release`, then extracted and exercised by `Test-Package.ps1`. Its checksum, required files, dependency notices, CLI version/help, project creation and failure exit codes passed. Both workflows passed `actionlint`; PowerShell scripts were parsed and the version/changelog validation was exercised locally. No GitHub release was published by this verification.
 
+The initial hosted CI run also passed on **Windows and Linux**, including the 49-case suite, portable packaging and execution of each platform's packaged CLI. The PR's latest checks remain the authority for subsequent changes.
+
 ## Read-only compatibility corpus
 
 The owner's existing extracted assets were inspected locally, without copying game content into this repository:

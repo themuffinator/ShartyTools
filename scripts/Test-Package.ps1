@@ -25,6 +25,13 @@ try {
     foreach ($file in @("ShartyTools$suffix", "sharty$suffix", 'LICENSE', 'licenses/dependencies.json', 'docs/RELEASING.md')) {
         if (-not (Test-Path -LiteralPath (Join-Path $application $file))) { throw "Package is missing $file" }
     }
+    $dependencies = Get-Content -LiteralPath (Join-Path $application 'licenses/dependencies.json') -Raw | ConvertFrom-Json
+    $runtimes = @($dependencies | Where-Object Package -match '^Microsoft\.NETCore\.App\.Runtime\.')
+    if ($runtimes.Count -ne 1) { throw 'Expected exactly one bundled .NET runtime notice set.' }
+    $runtimeNotices = Join-Path $application ('licenses/' + $runtimes[0].Package.Replace('/', '-'))
+    foreach ($notice in @('LICENSE.TXT', 'THIRD-PARTY-NOTICES.TXT')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $runtimeNotices $notice))) { throw "Missing .NET runtime notice: $notice" }
+    }
     $cli = Join-Path $application "sharty$suffix"
     $version = & $cli --version
     if ($LASTEXITCODE -ne 0 -or -not $version.StartsWith((Get-ProjectVersion).Version)) { throw 'Packaged CLI version check failed.' }

@@ -17,6 +17,8 @@ Before 1.0, use a minor release for user-visible features or breaking changes an
 
 The supplied `global.json` accepts local preview SDKs because the initial development host had one installed; CI/release setup explicitly requests the stable `10.0.x` channel. Dependencies are pinned centrally and locked. Do not disable auditing or locked restores to get a release through; resolve the graph or vulnerability first.
 
+Self-contained packages pin the bundled .NET runtime patch in `Directory.Build.props` (currently 10.0.12), independent of the local development SDK. Review this pin against Microsoft's supported .NET 10 patches when preparing each release. Packaging collects that exact runtime pack's license and third-party notices in addition to ordinary NuGet dependencies.
+
 ## Dispatch on GitHub
 
 The workflow must exist on the default branch to appear as a runnable manual workflow, per [GitHub's workflow-dispatch rules](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow). After this implementation is merged:
