@@ -1,0 +1,39 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ShartyTools.Desktop.App" RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme />
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="Inter, Segoe UI, Noto Sans, sans-serif" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Background" Value="#111519" />
+    </Style>
+    <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#9BA9AF" /></Style>
+    <Style Selector="TextBlock.eyebrow">
+      <Setter Property="Foreground" Value="#EFB878" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="2" />
+    </Style>
+    <Style Selector="TextBlock.heading">
+      <Setter Property="FontSize" Value="30" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#1A2025" />
+      <Setter Property="BorderBrush" Value="#303B42" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+    <Style Selector="Button"><Setter Property="CornerRadius" Value="5" /><Setter Property="Padding" Value="14,9" /></Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#DBAC77" />
+      <Setter Property="Foreground" Value="#15191B" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBox"><Setter Property="CornerRadius" Value="5" /></Style>
+    <Style Selector="TextBox.code"><Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" /><Setter Property="FontSize" Value="12" /></Style>
+    <Style Selector="TextBlock.label"><Setter Property="Margin" Value="0,10,0,5" /><Setter Property="Foreground" Value="#B8C4CA" /><Setter Property="FontSize" Value="12" /></Style>
+  </Application.Styles>
+</Application>

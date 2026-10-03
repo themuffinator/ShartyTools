@@ -1,0 +1,58 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore, build and test
+        run: ./scripts/Build.ps1 -CaptureUi
+      - name: Package and smoke test portable apps
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+        run: |
+          ./scripts/Pack.ps1 -Runtime $env:TARGET_RID
+          $archive = Get-ChildItem .artifacts/releases -File | Where-Object { $_.Name -notlike '*.sha256' } | Select-Object -First 1
+          ./scripts/Test-Package.ps1 -Archive $archive.FullName
+      - name: Test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tests-${{ matrix.os }}
+          path: |
+            .artifacts/test-results
+            .artifacts/verification
+          if-no-files-found: warn
+      - name: Preview applications
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: preview-${{ matrix.rid }}
+          path: .artifacts/releases/*
+          if-no-files-found: error

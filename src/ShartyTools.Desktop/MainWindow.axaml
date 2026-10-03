@@ -1,0 +1,144 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:ShartyTools.Desktop"
+        xmlns:jam="using:ShartyTools.Core.Jams"
+        x:Class="ShartyTools.Desktop.MainWindow" x:DataType="local:WorkspaceViewModel"
+        Title="ShartyTools · Quake II workshop" Width="1320" Height="900" MinWidth="1050" MinHeight="760">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="28,22">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+      <StackPanel Orientation="Horizontal" Spacing="14">
+        <Border Background="#DBAC77" CornerRadius="7" Width="42" Height="42">
+          <TextBlock Text="ST" Foreground="#161B20" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Spacing="3"><TextBlock Text="ShartyTools" FontSize="21" FontWeight="SemiBold" /><TextBlock Classes="eyebrow" Text="THE QUAKE II WORKSHOP" /></StackPanel>
+      </StackPanel>
+      <Border Grid.Column="1" BorderBrush="#38444B" BorderThickness="1" CornerRadius="16" Padding="14,7" VerticalAlignment="Center">
+        <TextBlock Text="CLASSIC + RERELEASE" Classes="muted" FontSize="11" />
+      </Border>
+    </Grid>
+    <TabControl Grid.Row="1" IsEnabled="{Binding IsIdle}" Name="ToolTabs">
+      <TabItem Header="01  Jam manager">
+        <Grid RowDefinitions="Auto,Auto,*" Margin="0,18,0,0">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="5"><TextBlock Text="Bring the jam together." Classes="heading" /><TextBlock Text="Maps, metadata and assets, ready for the community." Classes="muted" /></StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Content="New jam" Click="NewJam" /><Button Content="Open…" Click="OpenJam" /><Button Content="Save" Click="SaveJam" /><Button Content="Save as…" Click="SaveJamAs" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Grid.Row="1" Text="{Binding ProjectLocation}" Classes="muted" FontSize="11" Margin="0,12,0,16" TextTrimming="CharacterEllipsis" />
+          <Grid Grid.Row="2" ColumnDefinitions="330,18,*">
+            <Border Classes="card">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                  <TextBlock Text="PROJECT" Classes="eyebrow" />
+                  <TextBlock Text="Jam title" Classes="label" /><TextBox Name="JamTitle" Text="{Binding Project.Title}" PlaceholderText="Warehouse Jam" />
+                  <TextBlock Text="Mod folder / episode ID" Classes="label" /><TextBox Text="{Binding Project.Id}" PlaceholderText="myjam" />
+                  <TextBlock Text="Engine profile" Classes="label" />
+                  <ComboBox SelectedItem="{Binding Project.Profile}" HorizontalAlignment="Stretch">
+                    <x:String>quake2-rerelease</x:String><x:String>quake2-classic</x:String>
+                  </ComboBox>
+                  <TextBlock Text="Start map (intro or hub)" Classes="label" /><TextBox Text="{Binding Project.StartMap}" PlaceholderText="jam_intro" />
+                  <TextBlock Text="CONTENT SOURCES" Classes="eyebrow" Margin="0,26,0,6" />
+                  <TextBlock Text="One folder or PAK per line. All its files are included." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />
+                  <TextBox Name="ContentSources" Text="{Binding SourcesText}" AcceptsReturn="True" MinHeight="85" Classes="code" />
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"><Button Content="+ Folder" Click="AddContentFolder" /><Button Content="+ PAK" Click="AddContentPak" /></StackPanel>
+                  <TextBlock Text="GAME REFERENCES" Classes="eyebrow" Margin="0,26,0,6" />
+                  <TextBlock Text="Base-game / mod assets used by checks. Never included in the package." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />
+                  <TextBox Text="{Binding ReferenceText}" AcceptsReturn="True" MinHeight="72" Classes="code" />
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"><Button Content="+ Folder" Click="AddReferenceFolder" /><Button Content="+ PAK" Click="AddReferencePak" /></StackPanel>
+                </StackPanel>
+              </ScrollViewer>
+            </Border>
+            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
+              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                <Button Content="Discover maps" Click="DiscoverMaps" /><Button Content="Run checks" Click="RunChecks" /><Button Content="Build ZIP…" Classes="primary" Click="BuildZip" /><Button Content="Build PAK…" Click="BuildPak" />
+              </StackPanel>
+              <Border Grid.Row="1" Classes="card" Padding="14">
+                <TabControl Name="JamTabs">
+                  <TabItem Header="Maps">
+                    <Grid ColumnDefinitions="210,16,*" Margin="0,14,0,0">
+                      <Grid RowDefinitions="*,Auto">
+                        <ListBox Name="MapsList" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
+                          <ListBox.ItemTemplate><DataTemplate x:DataType="jam:JamMap"><TextBlock Text="{Binding Bsp}" Margin="3,7" TextTrimming="CharacterEllipsis" /></DataTemplate></ListBox.ItemTemplate>
+                        </ListBox>
+                        <WrapPanel Grid.Row="1" Margin="0,8,0,0"><Button Content="↑" Click="MapUp" ToolTip.Tip="Move map up" /><Button Content="↓" Click="MapDown" ToolTip.Tip="Move map down" /><Button Content="Unlist" Click="RemoveMap" ToolTip.Tip="Remove metadata only; source files are kept" /></WrapPanel>
+                      </Grid>
+                      <ScrollViewer Grid.Column="2">
+                        <StackPanel IsEnabled="{Binding HasSelectedMap}">
+                          <TextBlock Text="MAP DETAILS" Classes="eyebrow" />
+                          <TextBlock Text="Choose a discovered map to edit its listing." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0" />
+                          <TextBlock Text="BSP ID" Classes="label" /><TextBox Text="{Binding SelectedMap.Bsp}" IsReadOnly="True" />
+                          <TextBlock Text="Display title" Classes="label" /><TextBox Text="{Binding SelectedMap.Title}" />
+                          <TextBlock Text="Mapper / credits" Classes="label" /><TextBox Text="{Binding SelectedMap.Author}" />
+                          <TextBlock Text="Episode ID (blank uses jam ID)" Classes="label" /><TextBox Text="{Binding SelectedMap.Episode}" />
+                          <WrapPanel Margin="0,14,0,12"><CheckBox Content="Single player" IsChecked="{Binding SelectedMap.Sp}" Margin="0,0,16,0" /><CheckBox Content="Co-op" IsChecked="{Binding SelectedMap.Coop}" Margin="0,0,16,0" /><CheckBox Content="Deathmatch" IsChecked="{Binding SelectedMap.Dm}" Margin="0,0,16,0" /><CheckBox Content="Bots" IsChecked="{Binding SelectedMap.Bots}" /></WrapPanel>
+                          <Button Content="Inspect entities →" Click="InspectEntities" />
+                        </StackPanel>
+                      </ScrollViewer>
+                    </Grid>
+                  </TabItem>
+                  <TabItem Header="Map database">
+                    <Grid RowDefinitions="Auto,*,Auto" Margin="0,12,0,0">
+                      <TextBlock Text="Import or edit the complete mapdb. Apply JSON updates the map list; Refresh rebuilds this view from map details." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10" />
+                      <TextBox Grid.Row="1" Name="MapDbEditor" Text="{Binding MapDbText}" AcceptsReturn="True" Classes="code" TextWrapping="NoWrap" />
+                      <WrapPanel Grid.Row="2" Margin="0,10,0,0"><Button Content="Import…" Click="ImportMapDb" /><Button Content="Apply JSON" Click="ApplyMapDb" /><Button Content="Refresh" Click="RefreshMapDb" /><Button Content="Export…" Click="ExportMapDb" /></WrapPanel>
+                    </Grid>
+                  </TabItem>
+                  <TabItem Header="Checks">
+                    <Grid RowDefinitions="Auto,*,Auto" Margin="0,12,0,0">
+                      <TextBlock Text="Errors block packaging. Warnings flag items to review and playtest." Classes="muted" FontSize="12" Margin="0,0,0,10" />
+                      <TextBox Grid.Row="1" Name="CheckResults" Text="{Binding ReportText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Classes="code" />
+                      <Button Grid.Row="2" Content="Save report…" Click="SaveReport" Margin="0,10,0,0" HorizontalAlignment="Left" />
+                    </Grid>
+                  </TabItem>
+                  <TabItem Header="Entities">
+                    <Grid RowDefinitions="Auto,*,Auto" Margin="0,12,0,0">
+                      <TextBlock Text="Compiled BSP entity text. Read-only; export an .ent file for review." Classes="muted" FontSize="12" Margin="0,0,0,10" />
+                      <TextBox Grid.Row="1" Text="{Binding EntityText}" IsReadOnly="True" AcceptsReturn="True" Classes="code" TextWrapping="NoWrap" />
+                      <Button Grid.Row="2" Content="Export .ent…" Click="ExportEntities" Margin="0,10,0,0" HorizontalAlignment="Left" />
+                    </Grid>
+                  </TabItem>
+                </TabControl>
+              </Border>
+              <TextBlock Grid.Row="2" Text="01  Collect submissions      02  Review metadata      03  Check &amp; package" Classes="muted" FontSize="12" Margin="2,14,0,0" />
+            </Grid>
+          </Grid>
+        </Grid>
+      </TabItem>
+      <TabItem Header="02  MD2 skin editor">
+        <Grid RowDefinitions="Auto,*" Margin="0,18,0,0">
+          <StackPanel Spacing="5"><TextBlock Text="A new skin. The same model." Classes="heading" /><TextBlock Text="Edit the skin table without touching frames, triangles or UVs." Classes="muted" Margin="0,0,0,24" /></StackPanel>
+          <Grid Grid.Row="1" ColumnDefinitions="360,20,*">
+            <Border Classes="card"><StackPanel Spacing="18">
+              <TextBlock Text="MODEL" Classes="eyebrow" /><Button Content="Open MD2…" Click="OpenModel" Classes="primary" HorizontalAlignment="Left" />
+              <TextBlock Text="{Binding ModelSummary}" TextWrapping="Wrap" LineHeight="24" />
+              <Border Height="1" Background="#344149" />
+              <TextBlock Text="Skins are game-relative image paths, not embedded images. Supply matching image assets alongside the model." Classes="muted" TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Classic-safe limits: 32 entries, 63 ASCII characters per path. Keep skin order when existing entities use numbered skins." Classes="muted" TextWrapping="Wrap" LineHeight="23" />
+              <TextBlock Text="Export writes a new MD2 file. Your original stays intact." Foreground="#DBAC77" TextWrapping="Wrap" />
+            </StackPanel></Border>
+            <Border Grid.Column="2" Classes="card"><Grid RowDefinitions="Auto,Auto,*,Auto">
+              <TextBlock Text="SKIN TABLE" Classes="eyebrow" /><TextBlock Grid.Row="1" Text="One path per line, in slot order. Add a new line to append a skin." Classes="muted" Margin="0,10,0,16" />
+              <TextBox Grid.Row="2" Name="SkinEditor" Text="{Binding SkinsText}" AcceptsReturn="True" Classes="code" PlaceholderText="models/monsters/soldier/skin.pcx&#10;models/monsters/soldier/jam_skin.pcx" />
+              <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" Margin="0,16,0,0"><Button Content="Validate skin table" Click="ValidateSkins" /><Button Content="Save edited copy…" Classes="primary" Click="SaveModel" /></StackPanel>
+            </Grid></Border>
+          </Grid>
+        </Grid>
+      </TabItem>
+      <TabItem Header="About &amp; roadmap">
+        <ScrollViewer><StackPanel MaxWidth="800" HorizontalAlignment="Left" Margin="0,28,0,0" Spacing="22">
+          <TextBlock Text="Small tools. Less busywork." Classes="heading" />
+          <TextBlock Text="ShartyTools brings jam integration and MD2 skin editing into one desktop workspace, inspired by the practical needs of Map-Center's Quake community." TextWrapping="Wrap" FontSize="17" LineHeight="28" />
+          <Border Classes="card"><StackPanel Spacing="14"><TextBlock Text="NEXT: QUAKE 1" Classes="eyebrow" /><TextBlock Text="Separate game profiles, Quake BSP support and texture workflows will build on the same packaging and validation core." TextWrapping="Wrap" /></StackPanel></Border>
+          <Border Classes="card"><StackPanel Spacing="14"><TextBlock Text="LATER: VISUAL ENTITY EDITOR" Classes="eyebrow" /><TextBlock Text="A graph for complex entity scripting needs map-editor integration, entity definitions and reliable undo. This is a planned research track, with host-editor selection still open." TextWrapping="Wrap" /></StackPanel></Border>
+          <TextBlock Text="{Binding Version, StringFormat='Version {0}'}" Classes="muted" />
+          <TextBlock Text="Copyright © 2026 ShartyTools contributors. GNU GPL version 2. No warranty. License and dependency notices are included in the release. This is a community tool, unaffiliated with id Software or Bethesda." Classes="muted" TextWrapping="Wrap" />
+          <TextBlock Text="github.com/themuffinator/ShartyTools · map-center.com" Foreground="#DBAC77" />
+        </StackPanel></ScrollViewer>
+      </TabItem>
+    </TabControl>
+    <Border Grid.Row="2" Background="#202A30" CornerRadius="6" Padding="13,10" Margin="0,18,0,0">
+      <Grid ColumnDefinitions="Auto,*"><ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="70" Height="3" Margin="0,0,12,0" /><TextBlock Grid.Column="1" Name="StatusText" Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" MaxHeight="70" /></Grid>
+    </Border>
+  </Grid>
+</Window>

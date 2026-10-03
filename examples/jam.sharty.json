@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "myjam",
+  "title": "My Map-Center Jam",
+  "profile": "quake2-rerelease",
+  "startMap": "",
+  "sources": ["content"],
+  "referenceSources": [],
+  "maps": [],
+  "mapDbTemplate": {}
+}

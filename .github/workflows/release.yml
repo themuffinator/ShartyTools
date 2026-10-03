@@ -1,0 +1,130 @@
+name: Manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: 'Exact version in version.txt (for example 0.1.0 or 0.2.0-rc.1)'
+        required: true
+        type: string
+      draft:
+        description: 'Create a draft for final review (clear to publish immediately)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Require default branch
+        if: github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          echo 'Run manual releases from the repository default branch.'
+          exit 1
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate version, changelog and immutable tag
+        id: version
+        shell: pwsh
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: |
+          $release = ./scripts/Test-Release.ps1 -ExpectedVersion $env:EXPECTED_VERSION -CheckGit
+          "version=$($release.Version)" >> $env:GITHUB_OUTPUT
+          "tag=$($release.Tag)" >> $env:GITHUB_OUTPUT
+          "prerelease=$($release.Prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - run: ./scripts/Build.ps1
+      - name: Build portable applications and notices
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+        run: |
+          ./scripts/Pack.ps1 -Runtime $env:TARGET_RID -Release
+          $archive = Get-ChildItem .artifacts/releases -File | Where-Object { $_.Name -notlike '*.sha256' } | Select-Object -First 1
+          ./scripts/Test-Package.ps1 -Archive $archive.FullName
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: .artifacts/releases/*
+          if-no-files-found: error
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: release-*
+          path: .artifacts/releases
+          merge-multiple: true
+      - name: Verify assets, archive source, and create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.version }}
+          DRAFT: ${{ inputs.draft }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = ./scripts/Test-Release.ps1 -ExpectedVersion $env:EXPECTED_VERSION -CheckGit
+          $out = Join-Path $PWD '.artifacts/releases'
+          foreach ($checksum in Get-ChildItem -LiteralPath $out -Filter '*.sha256') {
+            $expected, $file = (Get-Content -LiteralPath $checksum.FullName -Raw).Trim() -split '  ', 2
+            $actual = (Get-FileHash -LiteralPath (Join-Path $out $file) -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -cne $expected) { throw "Checksum mismatch: $file" }
+          }
+          $source = Join-Path $out "ShartyTools-$($release.Version)-source.zip"
+          git archive --format=zip --prefix="ShartyTools-$($release.Version)/" --output=$source $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed.' }
+          $hash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText($source + '.sha256', "$hash  $([IO.Path]::GetFileName($source))`n")
+          $notesPath = Join-Path $PWD '.agents/tmp/release-notes.md'
+          [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($notesPath)) | Out-Null
+          [IO.File]::WriteAllText($notesPath, $release.Notes + "`n`nBuilt from commit $env:GITHUB_SHA. Binaries are unsigned; SHA-256 checksums and corresponding source are attached.`n")
+          $flags = @('--target', $env:GITHUB_SHA, '--title', "ShartyTools $($release.Version)", '--notes-file', $notesPath)
+          if ($env:DRAFT -eq 'true') { $flags += '--draft' }
+          if ($release.Prerelease) { $flags += @('--prerelease', '--latest=false') }
+          $assets = @(Get-ChildItem -LiteralPath $out -File | ForEach-Object FullName)
+          gh release create $release.Tag @assets @flags
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed. Inspect the draft/release before retrying; do not replace a published version.' }
