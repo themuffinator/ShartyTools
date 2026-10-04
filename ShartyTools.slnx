@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ShartyTools.Core/ShartyTools.Core.csproj" />
+    <Project Path="src/ShartyTools.Cli/ShartyTools.Cli.csproj" />
+    <Project Path="src/ShartyTools.Desktop/ShartyTools.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ShartyTools.Tests/ShartyTools.Tests.csproj" />
+  </Folder>
+</Solution>
