@@ -5,7 +5,7 @@ Release dates are recorded when a maintainer publishes a release; a heading here
 
 ## [Unreleased]
 
-## [0.1.0] - Initial release candidate
+## [0.1.0] - 2026-10-04
 
 ### Added
 
@@ -20,8 +20,15 @@ Release dates are recorded when a maintainer publishes a release; a heading here
 - Command-line access to the same operations for repeatable QA and builds.
 - Windows/Linux CI and an exclusively manual release workflow with version checks, source archives, license notices and checksums.
 
+### Downloads
+
+- Windows x64: extract `ShartyTools-0.1.0-win-x64.zip` and run `ShartyTools.exe`.
+- Linux x64: extract `ShartyTools-0.1.0-linux-x64.tar.gz` and run `./ShartyTools`.
+- Both portable downloads include the `sharty` CLI and .NET runtime. Keep the archive's files together. Corresponding source and SHA-256 checksums are provided alongside the binaries.
+
 ### Scope
 
 - Quake II classic and rerelease profiles. Quake 1 support is planned next.
 - The visual entity editor is deferred pending a host-editor integration design.
 - No game renderer, texture conversion, automatic asset-license clearance or automated playtesting.
+- Automated format, workflow and headless UI checks pass on Windows and Linux; organizers should still inspect packages and playtest in their target engine.

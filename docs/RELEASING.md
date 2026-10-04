@@ -21,7 +21,7 @@ Self-contained packages pin the bundled .NET runtime patch in `Directory.Build.p
 
 ## Dispatch on GitHub
 
-The workflow must exist on the default branch to appear as a runnable manual workflow, per [GitHub's workflow-dispatch rules](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow). After this implementation is merged:
+The workflow must exist on the default branch to appear as a runnable manual workflow, per [GitHub's workflow-dispatch rules](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow). To publish:
 
 1. Open **Actions → Manual release → Run workflow**.
 2. Select `main` and enter the exact value from `version.txt` in `expected_version`.
