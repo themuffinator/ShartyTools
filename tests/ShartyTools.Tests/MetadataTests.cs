@@ -108,7 +108,11 @@ public sealed class MetadataTests
     }
 
     [Theory]
-    [InlineData("{\"schemaVersion\":2}")]
+    [InlineData("{\"schemaVersion\":3}")]
+    [InlineData("{\"schemaVersion\":1,\"sourceSettings\":{\"content\":{}}}")]
+    [InlineData("{\"sourceSettings\":null}")]
+    [InlineData("{\"sourceSettings\":{\"missing\":{}}}")]
+    [InlineData("{\"sourceSettings\":{\"content\":{\"excludedFiles\":[null]}}}")]
     [InlineData("{\"sources\":null}")]
     [InlineData("{\"maps\":[null]}")]
     [InlineData("{\"startMap\":null}")]

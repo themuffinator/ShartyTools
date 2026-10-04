@@ -11,7 +11,7 @@ public static class Program
     public static int Main(string[] args)
     {
         try { return Run(args); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or JsonException or InvalidOperationException)
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or JsonException or InvalidOperationException)
         {
             Console.Error.WriteLine("Error: " + error.Message);
             return 2;
@@ -27,10 +27,15 @@ public static class Program
 
                 sharty --version
                 sharty jam new PROJECT ID TITLE
+                sharty jam add PROJECT SOURCE [--root PREFIX]
+                sharty jam files PROJECT [--json]
+                sharty jam root PROJECT SOURCE_NUMBER PREFIX|-
+                sharty jam include|exclude PROJECT SOURCE_NUMBER ENTRY_PATH
                 sharty jam scan PROJECT
                 sharty jam check PROJECT [--json] [--strict]
                 sharty jam build PROJECT OUTPUT.zip|OUTPUT.pak [--strict]
                 sharty mapdb import PROJECT INPUT.json
+                sharty mapdb import-source PROJECT SOURCE_NUMBER ENTRY_PATH
                 sharty mapdb export PROJECT OUTPUT.json
                 sharty bsp entities INPUT.bsp OUTPUT.ent
                 sharty md2 inspect INPUT.md2
@@ -38,6 +43,10 @@ public static class Program
 
                 Paths with spaces must be quoted. Edit sources, referenceSources and map
                 metadata in the desktop app or project JSON. Scan saves discovered maps.
+                Add accepts folders, PAKs and ZIPs (SOURCE is relative to the working
+                directory). Source numbers are 1-based as shown by 'jam files'; entry
+                paths are the original source paths, before stripping its content root.
+                Root '-' selects the source root. Inclusion and root changes are saved.
                 'md2 skins' replaces the full skin table in the supplied order; retain
                 existing names to append. Output files must not already exist.
                 Exit: 0 success; 1 failed QA (warnings with --strict); 2 invalid input/I/O.
@@ -70,6 +79,53 @@ public static class Program
             Console.WriteLine($"Added {added} maps; saved {scanPath}.");
             return 0;
         }
+        if (args.Length is 4 or 6 && args[0] == "jam" && args[1] == "add")
+        {
+            if (args.Length == 6 && args[4] != "--root") throw new ArgumentException("Unknown add option.");
+            var project = JamProject.Load(args[2]);
+            JamContent.AddSource(project, args[2], args[3], args.Length == 6 ? args[5] : "");
+            project.Save(args[2], true);
+            Console.WriteLine($"Added source #{project.Sources.Count}: {project.Sources[^1]}. Review with 'jam files'.");
+            return 0;
+        }
+        if (args.Length is 3 or 4 && args[0] == "jam" && args[1] == "files")
+        {
+            if (args.Length == 4 && args[3] != "--json") throw new ArgumentException("Unknown files option.");
+            var project = JamProject.Load(args[2]);
+            var files = JamContent.Inspect(project, args[2]);
+            if (args.Length == 4)
+                Console.WriteLine(JsonSerializer.Serialize(new
+                {
+                    sources = project.Sources.Select((source, index) => new { number = index + 1, path = source, root = project.SourceSettings.GetValueOrDefault(source)?.Root ?? "" }),
+                    files = files.Select(file => new { sourceNumber = file.SourceNumber, entry = file.Path, gamePath = file.GamePath, included = file.Included, bytes = file.Asset.Length })
+                }, JamProject.JsonOptions));
+            else
+            {
+                foreach (var (source, index) in project.Sources.Select((source, index) => (source, index))) Console.WriteLine($"#{index + 1} {source}");
+                foreach (var file in files) Console.WriteLine($"#{file.SourceNumber} [{(file.Included ? "included" : file.GamePath is null ? "outside root" : "excluded")}] {file.Path} -> {file.GamePath ?? "—"} ({file.Asset.Length} bytes)");
+            }
+            return 0;
+        }
+        if (args.Length == 5 && args[0] == "jam" && args[1] is "include" or "exclude" or "root")
+        {
+            var project = JamProject.Load(args[2]);
+            var source = JamContent.SourceAt(project, args[3]);
+            if (args[1] == "root")
+            {
+                JamContent.SetRoot(project, source, args[4] == "-" ? "" : args[4]);
+                _ = JamContent.Inspect(project, args[2]);
+            }
+            else
+            {
+                var file = JamContent.Inspect(project, args[2]).SingleOrDefault(file => file.Source == source && file.Path == args[4])
+                    ?? throw new FileNotFoundException("Entry not found; use the original path from 'jam files'.");
+                if (file.GamePath is null) throw new InvalidDataException("That file is outside the selected content root; change the root first.");
+                JamContent.SetIncluded(project, source, args[4], args[1] == "include");
+            }
+            project.Save(args[2], true);
+            Console.WriteLine("Saved source selection. Run checks before building.");
+            return 0;
+        }
         if (args.Length >= 3 && args[0] == "jam" && args[1] == "check")
         {
             var flags = args.Skip(3).ToArray();
@@ -92,6 +148,14 @@ public static class Program
             MapDatabase.Import(project, File.ReadAllText(jsonPath));
             project.Save(projectPath, true);
             Console.WriteLine($"Imported {project.Maps.Count} map entries; source paths are unchanged.");
+            return 0;
+        }
+        if (args is ["mapdb", "import-source", var sourceProject, var sourceNumber, var entryPath])
+        {
+            var project = JamProject.Load(sourceProject);
+            JamContent.ImportMapDb(project, sourceProject, JamContent.SourceAt(project, sourceNumber), entryPath);
+            project.Save(sourceProject, true);
+            Console.WriteLine($"Imported {project.Maps.Count} map entries and excluded the source mapdb. Review metadata and generated-path conflicts.");
             return 0;
         }
         if (args is ["mapdb", "export", var exportProject, var exportPath])

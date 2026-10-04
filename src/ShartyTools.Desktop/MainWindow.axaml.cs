@@ -112,7 +112,7 @@ public sealed partial class MainWindow : Window
         if (path is null) return;
         var project = await Task.Run(() => JamProject.Load(path));
         Workspace.LoadProject(project, path);
-        Workspace.Status = "Project loaded.";
+        Workspace.Status = project.SchemaVersion == 1 ? "Project loaded. Save upgrades to schema 2 and retains the original in a .schema1.bak file." : "Project loaded.";
     });
 
     private async Task SaveProject(bool saveAs)
@@ -131,11 +131,11 @@ public sealed partial class MainWindow : Window
         if (Workspace.ProjectPath.Length == 0) throw new InvalidOperationException("Create or save a jam project first so relative source paths have a home.");
     }
 
-    private async Task AddSource(bool reference, bool pak)
+    private async Task AddSource(bool reference, string? extension)
     {
         RequireProject();
         string? path;
-        if (pak) path = await OpenFile("Add PAK source", "pak");
+        if (extension is not null) path = await OpenFile($"Add {extension.ToUpperInvariant()} source", extension);
         else
         {
             var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Choose a game content root", AllowMultiple = false });
@@ -144,13 +144,20 @@ public sealed partial class MainWindow : Window
         if (path is null) return;
         var relative = Path.GetRelativePath(Path.GetDirectoryName(Workspace.ProjectPath)!, path).Replace('\\', '/');
         if (reference) Workspace.ReferenceText = (Workspace.ReferenceText + "\n" + relative).Trim();
-        else Workspace.SourcesText = (Workspace.SourcesText + "\n" + relative).Trim();
-        Workspace.Status = "Source added. Content roots should contain maps/, textures/, models/ and other game-relative paths.";
+        else
+        {
+            var snapshot = Workspace.Snapshot();
+            await Task.Run(() => JamContent.AddSource(snapshot, Workspace.ProjectPath, path));
+            Workspace.LoadProject(snapshot, Workspace.ProjectPath, false);
+            await RefreshContentFiles(relative);
+        }
+        Workspace.Status = "Source added. Review Files; set a content root if maps/ is inside a mod folder.";
     }
-    private async void AddContentFolder(object? sender, RoutedEventArgs e) => await Run(() => AddSource(false, false));
-    private async void AddContentPak(object? sender, RoutedEventArgs e) => await Run(() => AddSource(false, true));
-    private async void AddReferenceFolder(object? sender, RoutedEventArgs e) => await Run(() => AddSource(true, false));
-    private async void AddReferencePak(object? sender, RoutedEventArgs e) => await Run(() => AddSource(true, true));
+    private async void AddContentFolder(object? sender, RoutedEventArgs e) => await Run(() => AddSource(false, null));
+    private async void AddContentPak(object? sender, RoutedEventArgs e) => await Run(() => AddSource(false, "pak"));
+    private async void AddContentZip(object? sender, RoutedEventArgs e) => await Run(() => AddSource(false, "zip"));
+    private async void AddReferenceFolder(object? sender, RoutedEventArgs e) => await Run(() => AddSource(true, null));
+    private async void AddReferencePak(object? sender, RoutedEventArgs e) => await Run(() => AddSource(true, "pak"));
 
     private async void DiscoverMaps(object? sender, RoutedEventArgs e) => await Run(async () =>
     {
@@ -209,7 +216,7 @@ public sealed partial class MainWindow : Window
         var snapshot = Workspace.Snapshot();
         var text = await Task.Run(() =>
         {
-            var catalog = AssetCatalog.Create(snapshot.ResolveSources(Workspace.ProjectPath));
+            var catalog = JamContent.CreateCatalog(snapshot, Workspace.ProjectPath);
             if (!catalog.Files.TryGetValue($"maps/{GamePath.MapFileFromLaunch(map.Bsp)}.bsp", out var file)) throw new FileNotFoundException("Selected map is missing from the content sources.");
             return BspFile.Read(file.ReadAll()).EntitySource;
         });
@@ -217,6 +224,73 @@ public sealed partial class MainWindow : Window
         Workspace.EntityMap = GamePath.MapFileFromLaunch(map.Bsp);
         this.FindControl<TabControl>("JamTabs")!.SelectedIndex = 3;
         Workspace.Status = $"Read entity lump from {map.Bsp}.bsp.";
+    });
+
+    private async Task RefreshContentFiles(string? source = null, string? path = null)
+    {
+        RequireProject();
+        var snapshot = Workspace.Snapshot();
+        var files = await Task.Run(() => JamContent.Inspect(snapshot, Workspace.ProjectPath));
+        Workspace.LoadInventory(files, snapshot.Sources, source ?? Workspace.SelectedSource, path);
+        this.FindControl<TabControl>("JamTabs")!.SelectedItem = this.FindControl<TabItem>("FilesTab");
+    }
+
+    private async void RefreshFiles(object? sender, RoutedEventArgs e) => await Run(async () =>
+    {
+        await RefreshContentFiles();
+        Workspace.Status = "File inventory refreshed. Changes to inclusion and roots are saved with the project.";
+    });
+
+    private async Task SelectFile(bool included)
+    {
+        if (Workspace.SelectedFile is not { File: var file } || file.GamePath is null) return;
+        var snapshot = Workspace.Snapshot();
+        JamContent.SetIncluded(snapshot, file.Source, file.Path, included);
+        Workspace.LoadProject(snapshot, Workspace.ProjectPath, false);
+        await RefreshContentFiles(file.Source, file.Path);
+        Workspace.Status = $"{(included ? "Included" : "Excluded")} {file.Path}. Run checks after curating files, then save the project.";
+    }
+    private async void IncludeFile(object? sender, RoutedEventArgs e) => await Run(() => SelectFile(true));
+    private async void ExcludeFile(object? sender, RoutedEventArgs e) => await Run(() => SelectFile(false));
+
+    private async void SetSourceRoot(object? sender, RoutedEventArgs e) => await Run(async () =>
+    {
+        RequireProject();
+        if (Workspace.SelectedSource is not { } source) throw new InvalidOperationException("Refresh files and select a source first.");
+        var snapshot = Workspace.Snapshot();
+        var dialog = new Window { Title = "Content root", Width = 520, Height = 290, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var root = new TextBox { Text = snapshot.SourceSettings.GetValueOrDefault(source)?.Root ?? "", PlaceholderText = "Source root (empty)" };
+        var apply = new Button { Content = "Apply root" };
+        var cancel = new Button { Content = "Cancel" };
+        apply.Click += (_, _) => dialog.Close(root.Text ?? "");
+        cancel.Click += (_, _) => dialog.Close();
+        dialog.Content = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(24), Spacing = 18,
+            Children =
+            {
+                new TextBlock { Text = "For pack/maps/example.bsp, enter pack. Leave empty when maps/ is at the source root. Paths are case-sensitive; files outside the root are omitted.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                root, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { apply, cancel } }
+            }
+        };
+        var value = await dialog.ShowDialog<string?>(this);
+        if (value is null) return;
+        JamContent.SetRoot(snapshot, source, value);
+        var files = await Task.Run(() => JamContent.Inspect(snapshot, Workspace.ProjectPath));
+        Workspace.LoadProject(snapshot, Workspace.ProjectPath, false);
+        Workspace.LoadInventory(files, snapshot.Sources, source);
+        Workspace.Status = "Content root updated. Review omitted files, including submission readmes and licenses, before building.";
+    });
+
+    private async void ImportSourceMapDb(object? sender, RoutedEventArgs e) => await Run(async () =>
+    {
+        if (Workspace.SelectedFile is not { File: var file }) return;
+        if (Workspace.Maps.Count > 0 && !await ConfirmDiscard("Import replaces the current map listing and excludes this source mapdb from packaging. Continue?")) return;
+        var snapshot = Workspace.Snapshot();
+        await Task.Run(() => JamContent.ImportMapDb(snapshot, Workspace.ProjectPath, file.Source, file.Path));
+        Workspace.LoadProject(snapshot, Workspace.ProjectPath, false);
+        await RefreshContentFiles(file.Source, file.Path);
+        Workspace.Status = "Imported mapdb and excluded its source copy. Other generated files still need to be excluded explicitly; review the map list and save.";
     });
 
     private async void ImportMapDb(object? sender, RoutedEventArgs e) => await Run(async () =>

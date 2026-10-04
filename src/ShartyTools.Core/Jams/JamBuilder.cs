@@ -25,7 +25,7 @@ public static class JamBuilder
         var report = JamValidator.Validate(project, projectPath);
         if (report.HasErrors || (strict && report.Findings.Any(f => f.Severity == "warning")))
             throw new InvalidDataException("Build blocked by validation.\n" + report);
-        var content = AssetCatalog.Create(project.ResolveSources(projectPath));
+        var content = JamContent.CreateCatalog(project, projectPath);
         var payload = new List<Payload>();
         foreach (var asset in content.Files.Values)
         {
@@ -49,11 +49,20 @@ public static class JamBuilder
             "Assembled with ShartyTools. Community reference: https://map-center.com/forums/news.2/\n");
         var manifest = new
         {
-            schemaVersion = 1, jam = project.Id, title = project.Title, profile = project.Profile,
-            files = payload.OrderBy(p => p.Name, StringComparer.Ordinal).Select(p => new { path = p.Name, bytes = p.Length, sha256 = p.Sha256 }).ToArray(),
+            schemaVersion = 2, jam = project.Id, title = project.Title, profile = project.Profile,
+            sources = project.Sources.Select((source, index) => new
+            {
+                number = index + 1, name = Path.GetFileName(source.TrimEnd('/', '\\')),
+                root = project.SourceSettings.GetValueOrDefault(source)?.Root ?? ""
+            }).ToArray(),
+            files = payload.OrderBy(p => p.Name, StringComparer.Ordinal).Select(p => new
+            {
+                path = p.Name, bytes = p.Length, sha256 = p.Sha256,
+                origin = content.Files.GetValueOrDefault(p.Name)?.Origin
+            }).ToArray(),
             findings = report.Findings
         };
-        AddText("sharty-manifest.json", JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        AddText("sharty-manifest.json", JsonSerializer.Serialize(manifest, JamProject.JsonOptions) + "\n");
         payload = payload.OrderBy(p => p.Name, StringComparer.Ordinal).ToList();
         if (extension == ".pak")
         {

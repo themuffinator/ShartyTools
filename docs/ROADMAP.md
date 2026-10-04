@@ -2,15 +2,14 @@
 
 ## Milestone 0.1 — initial workshop
 
-Implemented: shared format library, jam projects, folder/PAK sources, map discovery and metadata, rerelease mapdb preservation, entity extraction and structural QA, deterministic packages, MD2 skin editing, desktop GUI, CLI, tests, documentation, versioning and manual releases.
+Implemented: shared format library, jam projects, folder/PAK/ZIP sources, per-source roots and file inclusion, source mapdb import, map discovery and metadata, rerelease mapdb preservation, entity extraction and structural QA, deterministic packages with provenance, MD2 skin editing, desktop GUI, CLI, tests, documentation, versioning and manual releases.
 
 Before calling a release community-tested, an organizer should run a real jam through the tool, inspect the output, and playtest it in the target engine. The current automated fixtures establish format and workflow behavior, not gameplay correctness. See [verification](VERIFICATION.md) for actual local/CI evidence.
 
 ## Milestone 0.2 — feedback from organizers and modelers
 
 - Validate against organizer-provided jam projects and document mod-specific conventions.
-- Consider ZIP submission import with bounded decompression, explicit path validation and provenance.
-- Add conflict resolution and per-file inclusion controls if organizers need them; currently conflicts must be resolved in source folders.
+- Gather feedback on ZIP submission limits, per-file inclusion and source-root selection; consider batch selection, nested PAK handling and multiple-submission metadata merging if needed.
 - Expand dependency resolution for WAL animation chains, skyboxes, explicit script includes, custom entities and mod inheritance.
 - Capture skin-editor feedback: image browsing/dimension checks, previews, duplicate-slot workflows and extended-engine limits.
 - Improve large-project progress/cancellation and per-rule configuration after measuring real jams.

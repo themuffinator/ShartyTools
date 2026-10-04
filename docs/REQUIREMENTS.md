@@ -11,13 +11,14 @@ The public event examples inform requirements without being bundled as test asse
 ## 1. Jam integration — implemented initial scope
 
 - A central GUI saves and reopens a portable project manifest.
-- Organizers collect maps, textures and other assets from explicit folders and existing PAKs, preserving game-relative layout.
+- Organizers collect maps, textures and other assets from explicit folders and existing PAKs/ZIPs, choosing a content root and preserving game-relative layout.
+- Source file inventories remain usable during conflicts; per-source exclusions resolve them without changing original submissions. Included source mapdb can be imported and excluded in one operation.
 - Different bytes at one asset path and case-only collisions block builds. Identical duplicates are reported and deduplicated.
 - Stock/prerequisite assets can resolve checks through separate read-only references and are never packaged.
 - Maps are discovered from IBSP 38 or QBSP 38; organizers set display metadata, authors, modes, order and start map.
 - Existing mapdb JSON can be imported, edited and exported, preserving unknown root/map fields, episodes and commands.
 - Entity lumps can be inspected and exported. Checks cover structure, worldspawn, starts, selected entity links, transitions and explicit file references.
-- Builds are deterministic for identical inputs on the same runtime, emit asset hashes and credits, and fail on validation errors. Strict CLI mode also rejects warnings.
+- Builds are deterministic for identical inputs on the same runtime, emit asset hashes, source provenance and credits, and fail on validation errors. Strict CLI mode also rejects warnings.
 - Source submissions and game installations are not modified.
 
 ## 2. MD2 skin table — implemented initial scope

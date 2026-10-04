@@ -26,10 +26,10 @@ public static class JamValidator
         {
             project.ValidateStructure();
             _ = MapDatabase.Export(project);
-            content = AssetCatalog.Create(project.ResolveSources(projectPath));
+            content = JamContent.CreateCatalog(project, projectPath);
             reference = AssetCatalog.Create(project.ResolveSources(projectPath, true), true);
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
             Add("error", "PROJECT", "", error.Message);
             return new ValidationReport(findings, 0, 0);
@@ -117,7 +117,7 @@ public static class JamValidator
                 foreach (var texture in bsp.Textures)
                     Dependency(map.Bsp, $"textures/{texture}.wal", $"textures/{texture}.tga", $"textures/{texture}.png");
             }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)
+            catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
             {
                 Add("error", "BSP_READ", map.Bsp, error.Message);
             }
@@ -131,7 +131,7 @@ public static class JamValidator
                     Add("error", "MD2_PROFILE", asset.Name, "This model exceeds 512 frames and requires a rerelease-compatible engine.");
                 foreach (var skin in model.Skins.Where(s => s.Length > 0)) Dependency(asset.Name, skin);
             }
-            catch (Exception error) when (error is IOException or ArgumentException)
+            catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
             { Add("error", "MD2_READ", asset.Name, error.Message); }
         }
         if (project.ReferenceSources.Count == 0)
@@ -141,7 +141,7 @@ public static class JamValidator
 
     public static int DiscoverMaps(JamProject project, string projectPath)
     {
-        var catalog = AssetCatalog.Create(project.ResolveSources(projectPath));
+        var catalog = JamContent.CreateCatalog(project, projectPath);
         var added = 0;
         foreach (var file in catalog.Files.Values.OrderBy(f => f.Name, StringComparer.Ordinal))
         {

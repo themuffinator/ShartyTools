@@ -6,45 +6,61 @@ namespace ShartyTools.Core.IO;
 
 public sealed record AssetFile(string Name, string Source, long Offset, long Length)
 {
+    internal ZipEntryIdentity? ZipEntry { get; init; }
+    public AssetOrigin? Origin { get; init; }
+
     public byte[] ReadAll(int limit = 512 * 1024 * 1024)
     {
         if (Length > limit) throw new InvalidDataException($"{Name} exceeds the {limit / 1024 / 1024} MiB read limit.");
         var bytes = new byte[checked((int)Length)];
-        using var input = Open();
-        input.ReadExactly(bytes);
+        using var output = new MemoryStream(bytes, true);
+        ReadAndCopy(output, null);
         return bytes;
     }
 
-    private FileStream Open()
+    private void ReadAndCopy(Stream? output, IncrementalHash? hash)
     {
         GamePath.RejectLinks(Source);
-        var input = new FileStream(Source, FileMode.Open, FileAccess.Read, FileShare.Read);
-        if (input.Length < Offset + Length)
+        using var input = new FileStream(Source, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (ZipEntry is { } identity)
         {
-            input.Dispose();
-            throw new IOException($"Source changed while being read: {Source}");
+            using var content = ZipSource.OpenEntry(input, identity);
+            Copy(content, output, hash, identity.Crc32);
+            return;
         }
+        if (input.Length < Offset + Length)
+            throw new IOException($"Source changed while being read: {Source}");
         input.Position = Offset;
-        return input;
+        Copy(input, output, hash, null);
     }
 
     public string CopyAndHash(Stream? output = null)
     {
-        using var input = Open();
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        ReadAndCopy(output, hash);
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    private void Copy(Stream input, Stream? output, IncrementalHash? hash, uint? expectedCrc)
+    {
         var buffer = new byte[81920];
         var remaining = Length;
+        var crc = uint.MaxValue;
         while (remaining > 0)
         {
             var count = input.Read(buffer, 0, (int)Math.Min(remaining, buffer.Length));
             if (count == 0) throw new EndOfStreamException($"Source was truncated: {Source}");
-            hash.AppendData(buffer, 0, count);
+            hash?.AppendData(buffer, 0, count);
+            if (expectedCrc.HasValue) crc = ZipSource.UpdateCrc(crc, buffer.AsSpan(0, count));
             output?.Write(buffer, 0, count);
             remaining -= count;
         }
-        return Convert.ToHexStringLower(hash.GetHashAndReset());
+        if (expectedCrc.HasValue && (input.ReadByte() != -1 || ~crc != expectedCrc.Value))
+            throw new InvalidDataException($"ZIP entry has an invalid expanded size or CRC: {Name}");
     }
 }
+
+public sealed record AssetOrigin(int SourceNumber, string Entry);
 
 public sealed class AssetCatalog
 {
@@ -56,29 +72,42 @@ public sealed class AssetCatalog
         var result = new AssetCatalog();
         foreach (var source in sources)
         {
-            GamePath.RejectLinks(source);
-            if (Directory.Exists(source))
-            {
-                foreach (var file in Walk(source))
-                {
-                    if (referenceOnly && Path.GetExtension(file).Equals(".pak", StringComparison.OrdinalIgnoreCase))
-                    {
-                        foreach (var entry in ReadPak(file)) result.Add(entry, true);
-                    }
-                    else
-                    {
-                        var name = GamePath.Validate(Path.GetRelativePath(source, file).Replace('\\', '/'));
-                        result.Add(new AssetFile(name, file, 0, new FileInfo(file).Length), referenceOnly);
-                    }
-                }
-            }
-            else if (File.Exists(source) && Path.GetExtension(source).Equals(".pak", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var entry in ReadPak(source)) result.Add(entry, referenceOnly);
-            }
-            else throw new InvalidDataException($"Content source is not a folder or PAK: {source}");
+            foreach (var file in ReadSource(source, referenceOnly)) result.Add(file, referenceOnly);
         }
         return result;
+    }
+
+    public static AssetCatalog FromFiles(IEnumerable<AssetFile> files)
+    {
+        var result = new AssetCatalog();
+        foreach (var file in files) result.Add(file, false);
+        return result;
+    }
+
+    public static IReadOnlyList<AssetFile> ReadSource(string source, bool referenceOnly = false)
+    {
+        GamePath.RejectLinks(source);
+        if (Directory.Exists(source))
+        {
+            var files = new List<AssetFile>();
+            foreach (var file in Walk(source))
+            {
+                if (referenceOnly && Path.GetExtension(file).Equals(".pak", StringComparison.OrdinalIgnoreCase))
+                    files.AddRange(ReadPak(file));
+                else
+                {
+                    var name = ZipSource.ValidateRelativePath(Path.GetRelativePath(source, file).Replace('\\', '/'));
+                    files.Add(new AssetFile(name, Path.GetFullPath(file), 0, new FileInfo(file).Length));
+                }
+            }
+            return files;
+        }
+        if (File.Exists(source))
+        {
+            if (Path.GetExtension(source).Equals(".pak", StringComparison.OrdinalIgnoreCase)) return ReadPak(source);
+            if (Path.GetExtension(source).Equals(".zip", StringComparison.OrdinalIgnoreCase)) return ZipSource.Read(source);
+        }
+        throw new InvalidDataException($"Content source is not a folder, PAK or ZIP: {source}");
     }
 
     private static IEnumerable<string> Walk(string directory)
@@ -97,6 +126,7 @@ public sealed class AssetCatalog
 
     private void Add(AssetFile file, bool referenceOnly)
     {
+        GamePath.Validate(file.Name);
         if (Files.TryGetValue(file.Name, out var previous))
         {
             if (referenceOnly) { Files[file.Name] = file; return; }

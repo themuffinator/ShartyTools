@@ -19,6 +19,37 @@ public static class DesktopTestApp
 public sealed class DesktopTests
 {
     [AvaloniaFact]
+    public void DesktopShowsZipInventoryRootsExclusionsAndMetadataActions()
+    {
+        using var folder = new TestFolder();
+        SubmissionTests.Zip(folder, "submission.zip", ("foundry/maps/fj_intro.bsp", TestData.Bsp()),
+            ("foundry/maps/fj_01.bsp", TestData.Bsp()), ("foundry/mapdb.json", "{}"u8.ToArray()),
+            ("foundry/readme.txt", "Original submission credits"u8.ToArray()), ("old-draft.txt", "notes"u8.ToArray()));
+        var project = new JamProject { Id = "foundryjam", Title = "Foundry Jam", Sources = ["submission.zip"] };
+        JamContent.SetRoot(project, "submission.zip", "foundry");
+        JamContent.SetIncluded(project, "submission.zip", "foundry/mapdb.json", false);
+        var path = folder.PathFor("foundry.sharty.json");
+        var window = new MainWindow();
+        window.Workspace.LoadProject(project, path);
+        window.Workspace.LoadInventory(JamContent.Inspect(project, path), project.Sources, "submission.zip", "foundry/mapdb.json");
+        window.Show();
+        window.FindControl<TabControl>("JamTabs")!.SelectedItem = window.FindControl<TabItem>("FilesTab");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(5, window.FindControl<ListBox>("SourceFilesList")!.ItemCount);
+        Assert.Equal("Content root: foundry", window.Workspace.SourceRootLabel);
+        Assert.True(window.Workspace.CanImportMapDb);
+        Assert.Contains("Excluded", window.Workspace.FileDetails);
+        Assert.Contains("3 included / 5 files", window.Workspace.FileSummary);
+        Capture(window, "submission-files.png");
+        window.Workspace.FileFilter = ".bsp";
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(2, window.FindControl<ListBox>("SourceFilesList")!.ItemCount);
+        Assert.False(window.Workspace.CanImportMapDb);
+        Assert.False(window.Workspace.JamDirty);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public void DesktopRendersBothToolsAndBindsLoadedProject()
     {
         var window = new MainWindow();

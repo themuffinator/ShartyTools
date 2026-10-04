@@ -10,7 +10,9 @@ Release dates are recorded when a maintainer publishes a release; a heading here
 ### Added
 
 - Quake II desktop workshop with jam management and an MD2 skin-table editor.
-- Portable jam projects with content folders/PAKs, read-only game references, map discovery, ordering, metadata and mapper credits.
+- Portable jam projects with content folders/PAKs/ZIPs, read-only game references, map discovery, ordering, metadata and mapper credits.
+- Submission file inventory, per-source content roots and inclusion controls; mapdb import directly from sources, bounded ZIP reads and build provenance.
+- Schema-2 projects with exact schema-1 backups on upgrade and rebased source settings on Save As.
 - Rerelease mapdb import, JSON editing and export with preservation of additional fields and episode commands.
 - IBSP/QBSP entity extraction and checks for starts, worldspawn, dangling targets, map transitions and explicit asset references.
 - Deterministic ZIP and PAK assembly with conflict detection, build manifests and SHA-256 hashes.

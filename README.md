@@ -10,7 +10,7 @@ The first milestone targets **classic Quake II and the 2023 rerelease**. Quake 1
 
 | Tool | Available in the initial implementation |
 | --- | --- |
-| Jam manager | Saved projects; folder and PAK sources; read-only base-game references; BSP discovery; titles, authors, modes and ordering; intro/hub selection; mapdb import/edit/export; entity inspection; validation; ZIP/PAK builds |
+| Jam manager | Saved projects; folder, PAK and ZIP sources; file inclusion and source roots; read-only base-game references; BSP discovery; titles, authors, modes and ordering; intro/hub selection; mapdb import/edit/export; entity inspection; validation; ZIP/PAK builds with provenance |
 | MD2 skin editor | Inspect the existing table; add, rename, remove or reorder skin references; validate classic limits; save an edited copy while preserving the remaining model bytes |
 | CLI | Project creation, discovery, QA, packaging, mapdb import/export, entity extraction and MD2 editing |
 
@@ -40,9 +40,9 @@ Build outputs live under `.artifacts/`; disposable task data lives under `.agent
 ## First jam
 
 1. Choose **New jam**, then set the title, mod-folder ID, engine profile and intro/hub map ID.
-2. Put submissions in the project's `content/` folder, or add folders/PAKs under **Content sources**. Each folder must be a game root containing `maps/`, `textures/`, `models/`, etc. Every file in a content root is included.
+2. Put submissions in the project's `content/` folder, or add folders/PAKs/ZIPs under **Content sources**. Open **Files → Refresh files**, select a source, and use **Set root** if its `maps/` folder is inside a mod folder. Include/exclude files there to resolve conflicts and omit drafts. ZIPs are read directly and never extracted or modified.
 3. Add the base game's `baseq2` folder/PAKs, and any prerequisite mod, under **Game references**. These are used only to resolve dependencies.
-4. Choose **Discover maps**, review titles, mapper credits and game modes, and arrange the map list. Import an existing mapdb if needed. **Apply JSON** commits raw mapdb edits to the project.
+4. Choose **Discover maps**, review titles, mapper credits and game modes, and arrange the map list. Select an included `mapdb.json` in **Files → Import this mapdb** to import its listing and exclude the original from packaging. **Apply JSON** commits raw mapdb edits to the project.
 5. Run checks, review warnings, save the project and build a ZIP or PAK outside the content roots. Output filenames must be new.
 
 A ZIP contains a top-level mod folder. A PAK contains game-relative files; install it as `pak0.pak` (or the appropriate next PAK) in your jam's mod folder. Classic builds omit `mapdb.json`, which stock Quake II does not use. Read the [jam guide](docs/JAM-MANAGER.md) for the limits of the checks and handling existing submissions.
@@ -52,12 +52,18 @@ A ZIP contains a top-level mod folder. A PAK contains game-relative files; insta
 ```powershell
 dotnet run --project src/ShartyTools.Cli -- --help
 dotnet run --project src/ShartyTools.Cli -- jam new ./myjam.sharty.json myjam "My Jam"
+dotnet run --project src/ShartyTools.Cli -- jam add ./myjam.sharty.json ./submission.zip --root pack
+dotnet run --project src/ShartyTools.Cli -- jam files ./myjam.sharty.json --json
+dotnet run --project src/ShartyTools.Cli -- mapdb import-source ./myjam.sharty.json 2 pack/mapdb.json
+dotnet run --project src/ShartyTools.Cli -- jam exclude ./myjam.sharty.json 2 pack/old-draft.txt
 dotnet run --project src/ShartyTools.Cli -- jam scan ./myjam.sharty.json
 dotnet run --project src/ShartyTools.Cli -- jam check ./myjam.sharty.json --json
 dotnet run --project src/ShartyTools.Cli -- jam build ./myjam.sharty.json ./myjam.zip
 dotnet run --project src/ShartyTools.Cli -- md2 inspect ./tris.md2
 dotnet run --project src/ShartyTools.Cli -- md2 skins ./tris.md2 ./tris-edited.md2 models/example/original.pcx models/example/new.pcx
 ```
+
+The ZIP examples assume a `pack/` content root; omit `--root` when assets are already game-relative. Use the source numbers and original entry paths from `jam files`. `jam root PROJECT NUMBER PREFIX` changes a root (`-` clears it); `jam include` reverses an exclusion. Selections are stored in schema-2 projects. Saving a schema-1 project preserves its exact original in `<project>.schema1.bak` before upgrading.
 
 `md2 skins` replaces the complete table in the given order. Include existing names when appending a skin. Exit codes: **0** success, **1** failed QA (also warnings with `--strict`), **2** invalid input or I/O failure. See [MD2 editing](docs/MD2-SKINS.md).
 

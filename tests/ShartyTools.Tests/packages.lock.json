@@ -339,6 +339,12 @@
           "xunit.v3.runner.common": "[3.2.2]"
         }
       },
+      "sharty": {
+        "type": "Project",
+        "dependencies": {
+          "ShartyTools.Core": "[0.1.0-dev, )"
+        }
+      },
       "ShartyTools": {
         "type": "Project",
         "dependencies": {

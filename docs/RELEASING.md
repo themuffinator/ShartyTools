@@ -4,7 +4,7 @@
 
 `version.txt` contains the product's SemVer, initially `0.1.0`. Both apps read it through `Directory.Build.props`; do not hand-edit assembly versions. Ordinary builds append `-dev`. The .NET SDK appends the source revision to informational versions when Git is available. These versions identify the base commit, not a hash of uncommitted changes; use a clean checkout for reproducible artifacts.
 
-The release tag is `v<version>`. Release archives, binaries and changelog entry use the same value. Prereleases such as `0.2.0-rc.1` are supported and are marked as GitHub prereleases rather than “latest”. Build metadata in `version.txt` is deliberately disallowed. Jam `schemaVersion` is independent: schema 1 does not change whenever the application version changes.
+The release tag is `v<version>`. Release archives, binaries and changelog entry use the same value. Prereleases such as `0.2.0-rc.1` are supported and are marked as GitHub prereleases rather than “latest”. Build metadata in `version.txt` is deliberately disallowed. Jam `schemaVersion` is independent of product versions: schema 2 adds source selection; schema-1 projects are retained in a backup when upgraded on save.
 
 Before 1.0, use a minor release for user-visible features or breaking changes and a patch release for compatible fixes. Describe any project-format change explicitly. After 1.0, use normal SemVer major/minor/patch compatibility rules.
 

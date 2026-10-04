@@ -1,18 +1,26 @@
 # Verification evidence
 
-Local validation date: **3 October 2026**. This records completed checks and their limits; a release entry does not imply that it has been published.
+Local validation dates: **3–4 October 2026**. This records completed checks and their limits; a release entry does not imply that it has been published.
 
 ## Automated checks
 
 `scripts/Build.ps1` restores the locked graph, builds the solution with warnings treated as errors, runs xUnit/Avalonia Headless tests and validates the version/changelog. Tests cover MD2 offset relocation and byte preservation, malformed inputs, classic/extended frame counts, BSP/entity parsing, source collisions, PAK/ZIP round-trips, deterministic packaging, dependency checks, mapdb preservation, workspace persistence and rendering the desktop tools.
 
-The full local suite passed **49 cases**, with zero build warnings or errors. Reference-data findings led to regression tests for repeated entity keys, launch expressions, extended stock models and multiple menu listings per BSP. The detailed results are in `.artifacts/test-results/tests.trx`; hosted CI reports its own results.
+The initial local suite passed **49 cases**, with zero build warnings or errors. Reference-data findings led to regression tests for repeated entity keys, launch expressions, extended stock models and multiple menu listings per BSP. The detailed results are in `.artifacts/test-results/tests.trx`; hosted CI reports its own results.
 
 Headless UI renderings were inspected from `.artifacts/verification/jam-manager.png` and `md2-editor.png`. They come from the application's render target. No OS screen capture, mouse/keyboard injection or game launch was used.
 
 The Windows self-contained archive was built with `Pack.ps1 -Runtime win-x64 -Release`, then extracted and exercised by `Test-Package.ps1`. Its checksum, required files, dependency notices, CLI version/help, project creation and failure exit codes passed. Both workflows passed `actionlint`; PowerShell scripts were parsed and the version/changelog validation was exercised locally. No GitHub release was published by this verification.
 
 The initial hosted CI run also passed on **Windows and Linux**, including the 49-case suite, portable packaging and execution of each platform's packaged CLI. The PR's latest checks remain the authority for subsequent changes.
+
+## Submission workflow follow-up
+
+The 4 October pass adds ZIP source indexing and streaming, per-source roots/exclusions, source mapdb import, CLI curation, schema migration backups and manifest provenance. Tests exercise conflicting submissions, excluded maps, malformed paths/directories, entry and total expanded-size limits, CRC/size failures, stored and Deflate entries, archive changes, metadata preservation, backup collisions, Save As and desktop inventory bindings. They also cover ordinary CLI error responses for malformed files; an existing exception-filter gap was fixed during this work.
+
+The full local suite now passes **81 cases**, with zero build warnings or errors, including ZIP data descriptors from streaming writers. The locked restore and version/changelog checks also pass. No third-party dependency was added to the core.
+
+The Files tab was rendered and inspected at `.artifacts/verification/submission-files.png`, through Avalonia Headless only. A synthetic 2,001-file / 2 MiB jam initially took 40.71 seconds with repeated directory parsing; indexing local byte ranges once reduced that to 1.99 seconds on the same local Windows fixture. Both implementations produced identical package bytes. This is an illustrative development measurement, not a general performance guarantee; the aggregate result is retained at `.artifacts/verification/zip-benchmark.json`.
 
 ## Read-only compatibility corpus
 

@@ -39,9 +39,9 @@
                   </ComboBox>
                   <TextBlock Text="Start map (intro or hub)" Classes="label" /><TextBox Text="{Binding Project.StartMap}" PlaceholderText="jam_intro" />
                   <TextBlock Text="CONTENT SOURCES" Classes="eyebrow" Margin="0,26,0,6" />
-                  <TextBlock Text="One folder or PAK per line. All its files are included." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />
+                  <TextBlock Text="One folder, PAK or ZIP per line. Review roots and exclusions in Files." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />
                   <TextBox Name="ContentSources" Text="{Binding SourcesText}" AcceptsReturn="True" MinHeight="85" Classes="code" />
-                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"><Button Content="+ Folder" Click="AddContentFolder" /><Button Content="+ PAK" Click="AddContentPak" /></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0"><Button Content="+ Folder" Click="AddContentFolder" /><Button Content="+ PAK" Click="AddContentPak" /><Button Content="+ ZIP" Click="AddContentZip" /></StackPanel>
                   <TextBlock Text="GAME REFERENCES" Classes="eyebrow" Margin="0,26,0,6" />
                   <TextBlock Text="Base-game / mod assets used by checks. Never included in the package." Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />
                   <TextBox Text="{Binding ReferenceText}" AcceptsReturn="True" MinHeight="72" Classes="code" />
@@ -96,6 +96,38 @@
                       <TextBlock Text="Compiled BSP entity text. Read-only; export an .ent file for review." Classes="muted" FontSize="12" Margin="0,0,0,10" />
                       <TextBox Grid.Row="1" Text="{Binding EntityText}" IsReadOnly="True" AcceptsReturn="True" Classes="code" TextWrapping="NoWrap" />
                       <Button Grid.Row="2" Content="Export .ent…" Click="ExportEntities" Margin="0,10,0,0" HorizontalAlignment="Left" />
+                    </Grid>
+                  </TabItem>
+                  <TabItem Header="Files" Name="FilesTab">
+                    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="0,12,0,0">
+                      <Grid ColumnDefinitions="*,Auto,Auto">
+                        <ComboBox Name="SourcePicker" ItemsSource="{Binding ContentSources}" SelectedItem="{Binding SelectedSource}" PlaceholderText="Choose a source" HorizontalAlignment="Stretch" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="Set root…" Click="SetSourceRoot" Margin="0,0,8,0" />
+                        <Button Grid.Column="2" Content="Refresh files" Click="RefreshFiles" />
+                      </Grid>
+                      <TextBlock Grid.Row="1" Text="{Binding SourceRootLabel}" Classes="muted" FontSize="12" Margin="0,8" TextTrimming="CharacterEllipsis" />
+                      <TextBox Grid.Row="2" Text="{Binding FileFilter}" PlaceholderText="Filter file paths…" Margin="0,0,0,8" />
+                      <ListBox Grid.Row="3" Name="SourceFilesList" ItemsSource="{Binding SourceFiles}" SelectedItem="{Binding SelectedFile}">
+                        <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="6,3" /></Style></ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                          <DataTemplate x:DataType="local:SourceFileRow">
+                            <Grid ColumnDefinitions="*,90,110" Margin="2,6">
+                              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding File.Path}" />
+                              <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="12" HorizontalAlignment="Right" Margin="4,0,12,0" />
+                              <TextBlock Grid.Column="2" Text="{Binding State}" Classes="muted" FontSize="12" />
+                            </Grid>
+                          </DataTemplate>
+                        </ListBox.ItemTemplate>
+                      </ListBox>
+                      <StackPanel Grid.Row="4" Spacing="8" Margin="0,10,0,0">
+                        <ScrollViewer MaxHeight="112"><TextBlock Text="{Binding FileDetails}" FontSize="12" TextWrapping="Wrap" /></ScrollViewer>
+                        <WrapPanel>
+                          <Button Content="Include" Click="IncludeFile" IsEnabled="{Binding CanSelectFile}" />
+                          <Button Content="Exclude" Click="ExcludeFile" IsEnabled="{Binding CanSelectFile}" />
+                          <Button Content="Import this mapdb" Click="ImportSourceMapDb" IsEnabled="{Binding CanImportMapDb}" />
+                        </WrapPanel>
+                      </StackPanel>
+                      <TextBlock Grid.Row="5" Text="{Binding FileSummary}" Classes="muted" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap" />
                     </Grid>
                   </TabItem>
                 </TabControl>
